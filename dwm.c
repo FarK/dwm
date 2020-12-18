@@ -57,6 +57,9 @@
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X)                (drw_fontset_getwidth(drw, (X)) + lrpad)
 
+#define ROTTR(X)                ( (X) << 1 | ((X) >> (LENGTH(tags) - 1)) )
+#define ROTTL(X)                ( (X) >> 1 | ((X) << (LENGTH(tags) - 1)) )
+
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
 enum { SchemeNorm, SchemeSel }; /* color schemes */
@@ -209,6 +212,7 @@ static void sigchld(int unused);
 static void spawn(const Arg *arg);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
+static void tagmove(const Arg *arg);
 static void tile(Monitor *);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
@@ -228,6 +232,7 @@ static void updatetitle(Client *c);
 static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
+static void viewmove(const Arg *arg);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
@@ -1672,6 +1677,25 @@ tagmon(const Arg *arg)
 }
 
 void
+tagmove(const Arg *arg) {
+	if (!selmon->sel)
+		return;
+
+	selmon->sel->tags &= selmon->tagset[selmon->seltags];
+	if (arg->i > 0)
+		selmon->sel->tags = ROTTR(selmon->sel->tags);
+	else
+		selmon->sel->tags = ROTTL(selmon->sel->tags);
+
+	if (selmon->sel->tags) {
+		selmon->seltags ^= 1;
+		selmon->tagset[selmon->seltags] = selmon->sel->tags;
+	}
+	focus(NULL);
+	arrange(selmon);
+}
+
+void
 tile(Monitor *m)
 {
 	unsigned int i, n, h, mw, my, ty;
@@ -2043,6 +2067,20 @@ view(const Arg *arg)
 	selmon->seltags ^= 1; /* toggle sel tagset */
 	if (arg->ui & TAGMASK)
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+	focus(NULL);
+	arrange(selmon);
+}
+
+void
+viewmove(const Arg *arg) {
+	unsigned int tagset = selmon->tagset[selmon->seltags];
+	selmon->seltags ^= 1;
+
+	if (arg->i > 0)
+		selmon->tagset[selmon->seltags] = ROTTR(tagset);
+	else
+		selmon->tagset[selmon->seltags] = ROTTL(tagset);
+
 	focus(NULL);
 	arrange(selmon);
 }
